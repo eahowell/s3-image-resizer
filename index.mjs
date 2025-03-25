@@ -1,4 +1,8 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import sharp from "sharp";
 
 const bucketName = "cc-image-resizer";
@@ -22,35 +26,42 @@ export const handler = async (event) => {
 
   try {
     console.log(`Fetching image from bucket: ${sourceBucket}`);
-    const image = await s3.send(new GetObjectCommand({
-      Bucket: sourceBucket,
-      Key: decodedSourceKey,
-    }));
-    
-    if (!image.ContentLength===0) {
-    console.log("Image data read successfully")};
-    
+    const image = await s3.send(
+      new GetObjectCommand({
+        Bucket: sourceBucket,
+        Key: decodedSourceKey,
+      })
+    );
+
+    if (!image.ContentLength === 0) {
+      console.log("Image data read successfully");
+    }
+
     // Convert the stream to a buffer
     const imageBuffer = await streamToBuffer(image.Body);
-    
+
     // Resize the image using sharp
     console.log("Resizing image...");
     const resizedImage = await sharp(imageBuffer)
+      .rotate()
       .resize(300, 300, { fit: sharp.fit.inside, withoutEnlargement: true })
       .toBuffer();
     // Upload the resized image using the PutObjectCommand
-    const destinationKey = `resized-images/${decodedSourceKey.split("/").pop()}`;
+    const destinationKey = `resized-images/${decodedSourceKey
+      .split("/")
+      .pop()}`;
     console.log(`Uploading resized image...`);
-    await s3.send(new PutObjectCommand({
-      Bucket: bucketName,
-      Key: destinationKey,
-      Body: resizedImage,
-      ContentType: "image/jpeg",
-    }));
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: destinationKey,
+        Body: resizedImage,
+        ContentType: "image/jpeg",
+      })
+    );
     console.log("Successfully uploaded");
-    
+
     return { statusCode: 200, body: "Image resized and uploaded successfully" };
-    
   } catch (error) {
     console.error("Error processing image:", error);
     return { statusCode: 500, body: `Error resizing image: ${error.message}` };
